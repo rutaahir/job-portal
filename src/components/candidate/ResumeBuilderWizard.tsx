@@ -637,22 +637,95 @@ export default function ResumeBuilderWizard({ onSave, onCancel, addToast, initia
 
   // Exporters
   const handlePrint = () => {
-    window.print();
+    const printContent = document.getElementById('printable-resume-paper');
+    if (!printContent) {
+      addToast('Printable layout element not found!', 'error');
+      return;
+    }
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      
+      // Gather stylesheet tags from main window
+      let stylesHtml = '';
+      Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).forEach(styleEl => {
+        stylesHtml += styleEl.outerHTML;
+      });
+      
+      doc.write(`
+        <html>
+          <head>
+            <title>${resume.personalInfo.firstName || 'Candidate'}_Resume</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+            ${stylesHtml}
+            <style>
+              @page {
+                size: A4 portrait;
+                margin: 15mm !important;
+              }
+              body {
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-family: 'Inter', sans-serif;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              #printable-resume-paper {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                min-height: auto !important;
+              }
+              /* Avoid cutting items across pages */
+              .experience-item, .education-item, .project-item, .section-block,
+              .grid, .flex, li, p, h1, h2, h3, h4 {
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+            </style>
+          </head>
+          <body>
+            <div id="printable-resume-paper">
+              ${printContent.innerHTML}
+            </div>
+            <script>
+              window.onload = function() {
+                window.focus();
+                setTimeout(() => {
+                  window.print();
+                  setTimeout(() => {
+                    window.frameElement.remove();
+                  }, 500);
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      doc.close();
+      addToast('Print dialog opened successfully!', 'success');
+    }
   };
 
   const handleDownloadPDF = () => {
-    addToast('Generating physical ATS-friendly resume layout...', 'info');
+    addToast('To save as PDF, select "Save as PDF" in the print destination options.', 'info');
     setTimeout(() => {
-      // Simulating a document generation file trigger
-      const element = document.createElement('a');
-      const file = new Blob([JSON.stringify(resume, null, 2)], { type: 'text/plain' });
-      element.href = URL.createObjectURL(file);
-      element.download = `${resume.personalInfo.firstName || 'Candidate'}_ATS_Resume.txt`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      addToast('Resume downloaded successfully!', 'success');
-    }, 1200);
+      handlePrint();
+    }, 1000);
   };
 
   const handleSaveAndComplete = () => {

@@ -66,7 +66,12 @@ export default function EmpSearchSection({ onSelectApplicantForAts, addToast }: 
     const matchesLoc = locationFilter === 'All' || cand.location === locationFilter;
     const matchesExp = experienceFilter === 'All' || cand.exp.includes(experienceFilter);
 
-    return matchesSearch && matchesRole && matchesLoc && matchesExp;
+    // Check Open to Work visibility for the logged-in candidate.
+    // If the logged-in candidate set their profile to hidden, remove them from search.
+    const openToWorkFlag = localStorage.getItem('technoadviser_open_to_work');
+    const candidateHidden = openToWorkFlag === 'false' && cand.id === 'cand-arjun';
+
+    return matchesSearch && matchesRole && matchesLoc && matchesExp && !candidateHidden;
   });
 
   return (
