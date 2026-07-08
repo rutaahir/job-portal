@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Custom theme colors */
+  --color-bg-theme: var(--color-bg);
+  --color-surface-theme: var(--color-surface);
+  --color-border-theme: var(--color-border);
+  --color-text-primary-theme: var(--color-text-primary);
+  --color-text-secondary-theme: var(--color-text-secondary);
+  --color-text-muted-theme: var(--color-text-muted);
+  --color-primary-theme: var(--color-primary);
+  --color-primary-hover-theme: var(--color-primary-hover);
+  --color-secondary-theme: var(--color-secondary);
+  --color-success-theme: var(--color-success);
+  --color-error-theme: var(--color-error);
+  --color-info-theme: var(--color-info);
+  --color-warning-theme: var(--color-warning);
+}
+
+:root {
+  --color-bg: #FAF9F6;
+  --color-surface: #FFFFFF;
+  --color-border: #E4E1D8;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #5A5850;
+  --color-text-muted: #8A8A85;
+  --color-primary: #E8702A;
+  --color-primary-hover: #D5601E;
+  --color-secondary: #14293D;
+  --color-success: #2E7D32;
+  --color-error: #D64545;
+  --color-info: #2F80ED;
+  --color-warning: #E8A930;
+}
+
+:root.dark {
+  --color-bg: #12171C;
+  --color-surface: #1B222A;
+  --color-border: #2E333A;
+  --color-text-primary: #F2F0EA;
+  --color-text-secondary: #B5B2A8;
+  --color-text-muted: #8B8880;
+  --color-primary: #F0894C;
+  --color-primary-hover: #E8702A;
+  --color-secondary: #5C87A8;
+  --color-success: #5BAE5F;
+  --color-error: #E88080;
+  --color-info: #6FA8E0;
+  --color-warning: #F0B84A;
+}
+
+/* Base resets & transitions */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Global Select and Option element style overrides for flawless contrast */
+select {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+}
+
+option {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Custom animation classes */
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s infinite ease-in-out;
+}
+
+/* Glass effect */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.dark .glass-effect {
+  background: rgba(27, 34, 42, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Ensure all select dropdowns and options have high-contrast focus styling */
+select:focus {
+  border-color: var(--color-primary) !important;
+  outline: none !important;
+}
+

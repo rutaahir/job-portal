@@ -1,0 +1,8 @@
+{
+  "name": "Remix: TechnoAdviser",
+  "description": "An advanced, AI-powered job portal connecting talent and empowering careers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
