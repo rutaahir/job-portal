@@ -145,9 +145,27 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
                     duration: exp.duration || '',
                     location: exp.location || ''
                   })));
+                } else {
+                  // If it parses but is not an array (e.g. string)
+                  setExperiences([{
+                    id: 'exp-0',
+                    role: String(parsedExp),
+                    company: 'Previous Employer',
+                    duration: 'N/A',
+                    location: 'N/A'
+                  }]);
                 }
               } catch (e) {
-                console.error('Failed to parse experienceHistory:', e);
+                // Fallback for plain string formats
+                if (typeof cand.experienceHistory === 'string') {
+                  setExperiences([{
+                    id: 'exp-0',
+                    role: cand.experienceHistory,
+                    company: 'Previous Employer',
+                    duration: 'N/A',
+                    location: 'N/A'
+                  }]);
+                }
               }
             }
 
@@ -162,9 +180,24 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
                     school: edu.school || '',
                     duration: edu.duration || ''
                   })));
+                } else {
+                  setEducations([{
+                    id: 'edu-0',
+                    degree: String(parsedEdu),
+                    school: 'Institution',
+                    duration: 'N/A'
+                  }]);
                 }
               } catch (e) {
-                console.error('Failed to parse education:', e);
+                // Fallback for plain string formats
+                if (typeof cand.education === 'string') {
+                  setEducations([{
+                    id: 'edu-0',
+                    degree: cand.education,
+                    school: 'Institution',
+                    duration: 'N/A'
+                  }]);
+                }
               }
             }
           }
@@ -614,6 +647,15 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
                   </div>
                 </div>
 
+          <AnimatePresence mode="wait">
+            {!activeSubView ? (
+              <motion.div
+                key="grid-view-content"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
                 {/* Complete Your Profile Segment */}
                 <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm text-left">
                   <div className="space-y-1">
@@ -672,18 +714,18 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
                           <div className="p-2.5 bg-[#E8702A]/10 text-[#E8702A] rounded-xl flex items-center justify-center transition-all group-hover:bg-[#E8702A] group-hover:text-white">
                             <Icon className="w-4 h-4 flex-shrink-0" />
                           </div>
-                          {cat.isCompleted ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-text-muted-theme group-hover:text-[#E8702A] transition-colors" />
+                          {cat.isCompleted && (
+                            <span className="p-1 bg-emerald-500/10 text-emerald-500 rounded-lg">
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            </span>
                           )}
                         </div>
 
                         <div className="mt-3 space-y-1">
-                          <h3 className="text-[11px] font-black text-text-primary-theme group-hover:text-[#E8702A] transition-colors">
+                          <h4 className="text-xs font-black text-text-primary-theme uppercase tracking-wider group-hover:text-[#E8702A] transition-colors">
                             {cat.title}
-                          </h3>
-                          <p className="text-[9px] text-text-muted-theme font-medium leading-tight">
+                          </h4>
+                          <p className="text-[10px] text-text-muted-theme font-medium leading-tight">
                             {cat.desc}
                           </p>
                         </div>
@@ -703,224 +745,54 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
                     );
                   })}
                 </div>
-
-              </div>
-
-              {/* Sidebar Stream (Right Column) */}
-              <div className="lg:col-span-3 space-y-6">
-                
-                {/* Profile Overview (Spider Web Chart) */}
-                <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 shadow-sm space-y-4 text-left">
-                  <h3 className="text-xs font-black text-text-primary-theme uppercase tracking-wider">
-                    Profile Overview
-                  </h3>
-
-                  {/* High Fidelity SVG Radar Chart */}
-                  <div className="relative flex justify-center py-2">
-                    <svg viewBox="0 0 200 210" className="w-full max-w-[180px] h-auto overflow-visible">
-                      
-                      {/* Concentric Pentagon Grids */}
-                      {[13, 26, 39, 52, 65].map((r, idx) => {
-                        const getPentagonPoints = (radius: number) => {
-                          const cx = 100, cy = 105;
-                          return Array.from({ length: 5 }).map((_, i) => {
-                            const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-                            const x = cx + radius * Math.cos(angle);
-                            const y = cy + radius * Math.sin(angle);
-                            return `${x},${y}`;
-                          }).join(' ');
-                        };
-                        return (
-                          <polygon 
-                            key={idx}
-                            points={getPentagonPoints(r)}
-                            className="stroke-border-theme/60 fill-none"
-                            strokeWidth="1"
-                          />
-                        );
-                      })}
-
-                      {/* Axes Lines radiating from center */}
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-                        const x = 100 + 65 * Math.cos(angle);
-                        const y = 105 + 65 * Math.sin(angle);
-                        return (
-                          <line 
-                            key={i}
-                            x1="100" y1="105" x2={x} y2={y}
-                            className="stroke-border-theme/60"
-                            strokeWidth="1"
-                            strokeDasharray="2 2"
-                          />
-                        );
-                      })}
-
-                      {/* Active Stat Area Polygon Filled */}
-                      <polygon 
-                        points={[
-                          { val: 0.85, angle: -Math.PI/2 }, // Skills
-                          { val: 0.75, angle: -Math.PI/2 + (2*Math.PI)/5 }, // Experience
-                          { val: 0.90, angle: -Math.PI/2 + (4*Math.PI)/5 }, // Education
-                          { val: 0.60, angle: -Math.PI/2 + (6*Math.PI)/5 }, // Certifications
-                          { val: 0.50, angle: -Math.PI/2 + (8*Math.PI)/5 }  // Activity
-                        ].map(p => {
-                          const r = 65 * p.val;
-                          const x = 100 + r * Math.cos(p.angle);
-                          const y = 105 + r * Math.sin(p.angle);
-                          return `${x},${y}`;
-                        }).join(' ')}
-                        className="fill-[#E8702A]/15 stroke-[#E8702A]"
-                        strokeWidth="2"
-                      />
-
-                      {/* Vertices indicator dots */}
-                      {[
-                        { val: 0.85, angle: -Math.PI/2 }, 
-                        { val: 0.75, angle: -Math.PI/2 + (2*Math.PI)/5 }, 
-                        { val: 0.90, angle: -Math.PI/2 + (4*Math.PI)/5 }, 
-                        { val: 0.60, angle: -Math.PI/2 + (6*Math.PI)/5 }, 
-                        { val: 0.50, angle: -Math.PI/2 + (8*Math.PI)/5 }
-                      ].map((p, i) => {
-                        const r = 65 * p.val;
-                        const x = 100 + r * Math.cos(p.angle);
-                        const y = 105 + r * Math.sin(p.angle);
-                        return (
-                          <circle 
-                            key={i}
-                            cx={x} cy={y} r="3"
-                            className="fill-[#E8702A] stroke-white"
-                            strokeWidth="1"
-                          />
-                        );
-                      })}
-
-                      {/* Web Axes Labels */}
-                      {[
-                        { label: 'Skills', x: 100, y: 30, anchor: 'middle' },
-                        { label: 'Experience', x: 172, y: 84, anchor: 'start' },
-                        { label: 'Education', x: 142, y: 168, anchor: 'start' },
-                        { label: 'Certifications', x: 58, y: 168, anchor: 'end' },
-                        { label: 'Activity', x: 28, y: 84, anchor: 'end' }
-                      ].map((l, i) => (
-                        <text 
-                          key={i}
-                          x={l.x} y={l.y}
-                          textAnchor={l.anchor}
-                          className="text-[8px] font-bold fill-text-secondary-theme font-sans"
-                        >
-                          {l.label}
-                        </text>
-                      ))}
-
-                    </svg>
-                  </div>
-
-                  {/* Horizontal bar metrics for small devices in widget */}
-                  <div className="pt-2 flex items-center justify-around text-center text-[10px] font-bold text-text-secondary-theme">
-                    <div>
-                      <p className="text-[#E8702A] text-xs">85%</p>
-                      <p className="text-text-muted-theme text-[8px] uppercase">Score</p>
-                    </div>
-                    <div className="w-px h-6 bg-border-theme/40" />
-                    <div>
-                      <p className="text-emerald-500 text-xs">A Grade</p>
-                      <p className="text-text-muted-theme text-[8px] uppercase">Rating</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* AI Career Insight */}
-                <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 space-y-3 shadow-sm text-left relative overflow-hidden">
-                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#E8702A]">
-                    <Sparkles className="w-4 h-4" />
-                    <span>AI Career Insight</span>
-                  </div>
-                  <p className="text-xs font-semibold leading-relaxed text-text-primary-theme">
-                    You're a great match for UI/UX Designer roles. Improve your Skills to increase match score.
-                  </p>
-                  <button 
-                    onClick={() => addToast('No recommendations matching filter changes.', 'info')}
-                    className="w-full py-2 bg-surface-theme border border-border-theme hover:bg-border-theme/30 text-text-primary-theme text-[10px] font-bold rounded-xl transition-all cursor-pointer"
-                  >
-                    View Insights
-                  </button>
-                </div>
-
-                {/* Profile Tips */}
-                <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 space-y-3 shadow-sm text-left">
-                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-text-primary-theme">
-                    <Lightbulb className="w-4 h-4 text-[#E8702A]" />
-                    <span>Profile Tips</span>
-                  </div>
-                  <p className="text-xs font-semibold leading-relaxed text-text-secondary-theme">
-                    Add more skills to get better job recommendations.
-                  </p>
-                  <button 
-                    onClick={() => setActiveSubView('skills')}
-                    className="text-[10px] text-[#E8702A] font-black hover:underline flex items-center gap-0.5 cursor-pointer"
-                  >
-                    Update Skills &rarr;
-                  </button>
-                </div>
-
-              </div>
-
-            </div>
-
-          </motion.div>
-        ) : (
-          <motion.div
-            key="sub-view"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="bg-surface-theme border border-border-theme rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm max-w-2xl mx-auto"
-            style={{ contentVisibility: 'auto' }}
-          >
-            {/* Back header */}
-            <div className="flex items-center gap-3 pb-4 border-b border-border-theme/40">
-              <button
-                onClick={() => setActiveSubView(null)}
-                className="p-2 hover:bg-border-theme/40 text-text-secondary-theme rounded-lg transition-all cursor-pointer"
+              </motion.div>
+            ) : (
+              <motion.div
+                key="sub-view-content"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-surface-theme border border-border-theme rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm text-left"
               >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-              <div>
-                <h3 className="text-sm font-black text-text-primary-theme uppercase tracking-wider">
-                  {categories.find(c => c.id === activeSubView)?.title}
-                </h3>
-                <p className="text-[10px] text-text-muted-theme">Update your parameter attributes</p>
-              </div>
-            </div>
+                {/* Back header */}
+                <div className="flex items-center gap-3 pb-4 border-b border-border-theme/40">
+                  <button
+                    onClick={() => setActiveSubView(null)}
+                    className="p-2 hover:bg-border-theme/40 text-text-secondary-theme rounded-lg transition-all cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div>
+                    <h3 className="text-sm font-black text-text-primary-theme uppercase tracking-wider">
+                      {categories.find(c => c.id === activeSubView)?.title}
+                    </h3>
+                    <p className="text-[10px] text-text-muted-theme">Update your parameter attributes</p>
+                  </div>
+                </div>
 
-            {/* Horizontal Navigation for Sections (except Resume Builder) */}
-            {activeSubView !== 'resume' && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 border-b border-border-theme/40 -mx-6 px-6 scrollbar-none">
-                {categories.filter(c => c.id !== 'resume').map((c) => {
-                  const Icon = c.icon;
-                  const isActive = activeSubView === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setActiveSubView(c.id as ProfileSubView)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
-                        isActive
-                          ? 'bg-[#E8702A] border-[#E8702A] text-white shadow-sm'
-                          : 'bg-surface-theme border-border-theme/60 text-text-secondary-theme hover:bg-border-theme/10'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{c.title}</span>
-                      {c.isCompleted && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-green-500'}`} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
+                {/* Horizontal Navigation for Sections (except Resume Builder) */}
+                {activeSubView !== 'resume' && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-4 border-b border-border-theme/40 -mx-6 px-6 scrollbar-none">
+                    {categories.filter(c => c.id !== 'resume').map((c) => {
+                      const Icon = c.icon;
+                      const isActive = activeSubView === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => setActiveSubView(c.id as ProfileSubView)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                            isActive
+                              ? 'bg-[#E8702A] border-[#E8702A] text-white shadow-sm'
+                              : 'bg-surface-theme border-border-theme text-text-secondary-theme hover:border-[#E8702A]/50'
+                          }`}
+                        >
+                          <Icon className="w-3 h-3" />
+                          {c.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
             {/* Sub-panels */}
             {activeSubView === 'personal' && (
               <div className="space-y-4 text-xs font-semibold">
@@ -1416,6 +1288,169 @@ export default function ProfileSection({ username, addToast }: ProfileSectionPro
           </motion.div>
         )}
       </AnimatePresence>
+        </div>
+
+        {/* Sidebar Stream (Right Column) */}
+        <div className="lg:col-span-3 space-y-6">
+          
+          {/* Profile Overview (Spider Web Chart) */}
+          <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 shadow-sm space-y-4 text-left">
+            <h3 className="text-xs font-black text-text-primary-theme uppercase tracking-wider">
+              Profile Overview
+            </h3>
+
+            {/* High Fidelity SVG Radar Chart */}
+            <div className="relative flex justify-center py-2">
+              <svg viewBox="0 0 200 210" className="w-full max-w-[180px] h-auto overflow-visible">
+                
+                {/* Concentric Pentagon Grids */}
+                {[13, 26, 39, 52, 65].map((r, idx) => {
+                  const getPentagonPoints = (radius: number) => {
+                    const cx = 100, cy = 105;
+                    return Array.from({ length: 5 }).map((_, i) => {
+                      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+                      const x = cx + radius * Math.cos(angle);
+                      const y = cy + radius * Math.sin(angle);
+                      return `${x},${y}`;
+                    }).join(' ');
+                  };
+                  return (
+                    <polygon 
+                      key={idx}
+                      points={getPentagonPoints(r)}
+                      className="stroke-border-theme/60 fill-none"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+                  const x = 100 + 65 * Math.cos(angle);
+                  const y = 105 + 65 * Math.sin(angle);
+                  return (
+                    <line 
+                      key={i}
+                      x1="100" y1="105" x2={x} y2={y}
+                      className="stroke-border-theme/60"
+                      strokeWidth="1"
+                      strokeDasharray="2 2"
+                    />
+                  );
+                })}
+
+                {/* Active Stat Area Polygon Filled */}
+                <polygon 
+                  points={[
+                    { val: 0.85, angle: -Math.PI/2 }, // Skills
+                    { val: 0.75, angle: -Math.PI/2 + (2*Math.PI)/5 }, // Experience
+                    { val: 0.90, angle: -Math.PI/2 + (4*Math.PI)/5 }, // Education
+                    { val: 0.60, angle: -Math.PI/2 + (6*Math.PI)/5 }, // Certifications
+                    { val: 0.50, angle: -Math.PI/2 + (8*Math.PI)/5 }  // Activity
+                  ].map(p => {
+                    const r = 65 * p.val;
+                    const x = 100 + r * Math.cos(p.angle);
+                    const y = 105 + r * Math.sin(p.angle);
+                    return `${x},${y}`;
+                  }).join(' ')}
+                  className="fill-[#E8702A]/15 stroke-[#E8702A]"
+                  strokeWidth="2"
+                />
+
+                {/* Vertices indicator dots */}
+                {[
+                  { val: 0.85, angle: -Math.PI/2 }, 
+                  { val: 0.75, angle: -Math.PI/2 + (2*Math.PI)/5 },
+                  { val: 0.90, angle: -Math.PI/2 + (4*Math.PI)/5 }, 
+                  { val: 0.60, angle: -Math.PI/2 + (6*Math.PI)/5 }, 
+                  { val: 0.50, angle: -Math.PI/2 + (8*Math.PI)/5 }
+                ].map((p, i) => {
+                  const r = 65 * p.val;
+                  const x = 100 + r * Math.cos(p.angle);
+                  const y = 105 + r * Math.sin(p.angle);
+                  return (
+                    <circle 
+                      key={i}
+                      cx={x} cy={y} r="3"
+                      className="fill-[#E8702A] stroke-white"
+                      strokeWidth="1"
+                    />
+                  );
+                })}
+
+                {/* Web Axes Labels */}
+                {[
+                  { label: 'Skills', x: 100, y: 30, anchor: 'middle' },
+                  { label: 'Experience', x: 172, y: 84, anchor: 'start' },
+                  { label: 'Education', x: 142, y: 168, anchor: 'start' },
+                  { label: 'Certifications', x: 58, y: 168, anchor: 'end' },
+                  { label: 'Activity', x: 28, y: 84, anchor: 'end' }
+                ].map((l, i) => (
+                  <text 
+                    key={i}
+                    x={l.x} y={l.y}
+                    textAnchor={l.anchor}
+                    className="text-[8px] font-bold fill-text-secondary-theme font-sans"
+                  >
+                    {l.label}
+                  </text>
+                ))}
+
+              </svg>
+            </div>
+
+            {/* Horizontal bar metrics for small devices in widget */}
+            <div className="pt-2 flex items-center justify-around text-center text-[10px] font-bold text-text-secondary-theme">
+              <div>
+                <p className="text-[#E8702A] text-xs">85%</p>
+                <p className="text-text-muted-theme text-[8px] uppercase">Score</p>
+              </div>
+              <div className="w-px h-6 bg-border-theme/40" />
+              <div>
+                <p className="text-emerald-500 text-xs">A Grade</p>
+                <p className="text-text-muted-theme text-[8px] uppercase">Rating</p>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Career Insight */}
+          <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 space-y-3 shadow-sm text-left relative overflow-hidden">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#E8702A]">
+              <Sparkles className="w-4 h-4" />
+              <span>AI Career Insight</span>
+            </div>
+            <p className="text-xs font-semibold leading-relaxed text-text-primary-theme">
+              You're a great match for UI/UX Designer roles. Improve your Skills to increase match score.
+            </p>
+            <button 
+              onClick={() => addToast('No recommendations matching filter changes.', 'info')}
+              className="w-full py-2 bg-surface-theme border border-border-theme hover:bg-border-theme/30 text-text-primary-theme text-[10px] font-bold rounded-xl transition-all cursor-pointer"
+            >
+              View Insights
+            </button>
+          </div>
+
+          {/* Profile Tips */}
+          <div className="bg-surface-theme border border-border-theme rounded-2xl p-5 space-y-3 shadow-sm text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-text-primary-theme">
+              <Lightbulb className="w-4 h-4 text-[#E8702A]" />
+              <span>Profile Tips</span>
+            </div>
+            <p className="text-xs font-semibold leading-relaxed text-text-secondary-theme">
+              Add more skills to get better job recommendations.
+            </p>
+            <button 
+              onClick={() => setActiveSubView('skills')}
+              className="text-[10px] text-[#E8702A] font-black hover:underline flex items-center gap-0.5 cursor-pointer"
+            >
+              Update Skills &rarr;
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   );
 }

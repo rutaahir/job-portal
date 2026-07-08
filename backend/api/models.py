@@ -295,3 +295,155 @@ class Notification(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.title}"
 
+
+class Resume(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='resumes')
+    name = models.CharField(max_length=255)
+    file_url = models.CharField(max_length=500, blank=True, default='')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    content_text = models.TextField(blank=True, default='')
+
+    def __str__(self):
+        return self.name
+
+class ResumeVersion(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    resume = models.ForeignKey(Resume, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.IntegerField(default=1)
+    name = models.CharField(max_length=255)
+    content_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.resume.name} v{self.version_number}"
+
+class ResumeAnalysis(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='resume_analyses')
+    resume = models.ForeignKey(Resume, on_delete=models.CASCADE, related_name='analyses')
+    ats_score = models.IntegerField(default=0)
+    formatting_score = models.IntegerField(default=0)
+    grammar_score = models.IntegerField(default=0)
+    keyword_score = models.IntegerField(default=0)
+    analysis_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class ResumeOptimization(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='resume_optimizations')
+    resume = models.ForeignKey(Resume, on_delete=models.CASCADE, related_name='optimizations')
+    before_content = models.JSONField(default=dict)
+    after_content = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Conversation(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='conversations')
+    title = models.CharField(max_length=255, default='New Conversation')
+    is_favorite = models.BooleanField(default=False)
+    is_pinned = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+class ConversationMessage(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.CharField(max_length=50) # 'user' or 'ai'
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class AIRecommendation(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='ai_recommendations')
+    category = models.CharField(max_length=100) # e.g. 'resume', 'jobs', 'learning'
+    recommendation_text = models.TextField()
+    metadata = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class CareerRoadmap(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='career_roadmaps')
+    target_role = models.CharField(max_length=255)
+    roadmap_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class LearningRecommendation(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='learning_recommendations')
+    skill_name = models.CharField(max_length=255)
+    courses = models.JSONField(default=list)
+    books = models.JSONField(default=list)
+    projects = models.JSONField(default=list)
+    youtube = models.JSONField(default=list)
+    blogs = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class SalaryPrediction(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='salary_predictions')
+    experience = models.FloatField()
+    skills = models.JSONField(default=list)
+    location = models.CharField(max_length=255)
+    min_salary = models.FloatField()
+    avg_salary = models.FloatField()
+    max_salary = models.FloatField()
+    market_demand = models.CharField(max_length=100)
+    growth_rate = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class InterviewSession(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='interview_sessions')
+    round_type = models.CharField(max_length=50) # 'HR', 'Technical', 'Managerial'
+    role = models.CharField(max_length=255)
+    questions = models.JSONField(default=list)
+    answers = models.JSONField(default=dict)
+    evaluation = models.JSONField(default=dict)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class SkillGapAnalysis(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='skill_gaps')
+    job_title = models.CharField(max_length=255)
+    job_description = models.TextField()
+    analysis_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class JobMatchAnalysis(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='job_matches')
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    match_score = models.IntegerField(default=0)
+    analysis_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class CompanyInsight(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='company_insights')
+    company_name = models.CharField(max_length=255)
+    insight_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class CoverLetter(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='cover_letters')
+    job_title = models.CharField(max_length=255)
+    company_name = models.CharField(max_length=255)
+    letter_text = models.TextField()
+    tone = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class AssessmentResult(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='assessment_results')
+    test_name = models.CharField(max_length=255)
+    score = models.IntegerField()
+    total_questions = models.IntegerField()
+    correct_answers = models.IntegerField()
+    taken_at = models.DateTimeField(auto_now_add=True)
+

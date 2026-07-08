@@ -41,6 +41,7 @@ export default function AuthFlow({ initialStep, onNavigateToPage, onLoginSuccess
   // Password Reset States
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState(['', '', '', '', '', '']);
+  const [serverOtp, setServerOtp] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [confirmResetPassword, setConfirmResetPassword] = useState('');
 
@@ -308,16 +309,41 @@ export default function AuthFlow({ initialStep, onNavigateToPage, onLoginSuccess
   };
 
   // Forgot Password Phase 1: Check account
-  const handleForgotSubmit = (e: React.FormEvent) => {
+  const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = resetEmail.trim().toLowerCase();
+
+    // 1. Attempt backend forgot-password API first
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setServerOtp(data.otp);
+        addToast(`Security OTP passcode generated successfully. Check backend console.`, 'success');
+        setStep('OTP_VERIFICATION');
+        return;
+      } else {
+        addToast(data.error || 'Forgot password failed', 'error');
+        return;
+      }
+    } catch (apiErr) {
+      console.warn('Backend server connection inactive. Operating on offline local sandbox engine...', apiErr);
+    }
+
+    // 2. Offline fallback
     const users: UserAccount[] = JSON.parse(localStorage.getItem('technoadviser_users') || '[]');
-    const exists = users.some((u) => u.email.toLowerCase() === resetEmail.toLowerCase());
+    const exists = users.some((u) => u.email.toLowerCase() === normalizedEmail);
 
     if (!exists) {
       addToast('No registered accounts match this email address.', 'error');
       return;
     }
 
+    setServerOtp('248167'); // Offline default
     addToast(`Security OTP passcode sent to: ${resetEmail}`, 'success');
     setStep('OTP_VERIFICATION');
   };
@@ -326,15 +352,16 @@ export default function AuthFlow({ initialStep, onNavigateToPage, onLoginSuccess
   const handleResetOtpVerify = (e: React.FormEvent) => {
     e.preventDefault();
     const enteredOtp = resetOtp.join('');
-    if (enteredOtp !== '248167') {
-      addToast('Invalid secure verification OTP. Use 248167.', 'error');
+    const expected = serverOtp || '248167';
+    if (enteredOtp !== expected) {
+      addToast(`Invalid secure verification OTP. Use ${expected}.`, 'error');
       return;
     }
     addToast('OTP verified. Please set your new password.', 'success');
     setStep('RESET_PASSWORD');
   };
 
-  const handleResetPasswordSubmit = (e: React.FormEvent) => {
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (resetPassword !== confirmResetPassword) {
       addToast('Passwords do not match.', 'error');
@@ -345,10 +372,37 @@ export default function AuthFlow({ initialStep, onNavigateToPage, onLoginSuccess
       return;
     }
 
-    // Update password in local storage
+    const normalizedEmail = resetEmail.trim().toLowerCase();
+    const enteredOtp = resetOtp.join('');
+
+    // 1. Attempt backend reset-password API first
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          otp: enteredOtp,
+          password: resetPassword
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        addToast('Portal password updated securely via REST API!', 'success');
+        setStep('RESET_SUCCESS');
+        return;
+      } else {
+        addToast(data.error || 'Password reset failed', 'error');
+        return;
+      }
+    } catch (apiErr) {
+      console.warn('Backend server connection inactive. Operating on offline local sandbox engine...', apiErr);
+    }
+
+    // 2. Offline fallback
     const users: UserAccount[] = JSON.parse(localStorage.getItem('technoadviser_users') || '[]');
     const updated = users.map((u) => {
-      if (u.email.toLowerCase() === resetEmail.toLowerCase()) {
+      if (u.email.toLowerCase() === normalizedEmail) {
         return { ...u, passwordHash: resetPassword };
       }
       return u;
@@ -773,7 +827,7 @@ export default function AuthFlow({ initialStep, onNavigateToPage, onLoginSuccess
               </div>
 
               <div className="text-[10px] text-text-muted-theme font-bold flex justify-between items-center px-4">
-                <span>Passcode is: <strong className="text-primary-theme font-mono">248167</strong></span>
+                <span>Passcode is: <strong className="text-primary-theme font-mono">{serverOtp || '248167'}</strong></span>
                 <span>Time remaining: <strong className="text-error-theme font-mono">03:00</strong></span>
               </div>
 

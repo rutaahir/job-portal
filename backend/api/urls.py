@@ -48,4 +48,24 @@ urlpatterns = [
 
     # Gemini
     path('gemini/analyze', views.gemini_analyze, name='gemini_analyze'),
+
+    # Copilot
+    path('copilot/dashboard', views.copilot_dashboard, name='copilot_dashboard'),
+    path('copilot/conversations', views.copilot_conversations, name='copilot_conversations'),
+    path('copilot/conversations/<str:pk>', views.copilot_conversation_detail, name='copilot_conversation_detail'),
+    path('copilot/resume/analyze', views.copilot_resume_analyze, name='copilot_resume_analyze'),
+    path('copilot/resume/optimize', views.copilot_resume_optimize, name='copilot_resume_optimize'),
+    path('copilot/cover-letter', views.copilot_cover_letter, name='copilot_cover_letter'),
+    path('copilot/roadmap', views.copilot_roadmap, name='copilot_roadmap'),
+    path('copilot/skill-gap', views.copilot_skill_gap, name='copilot_skill_gap'),
+    path('copilot/learning', views.copilot_learning, name='copilot_learning'),
+    path('copilot/salary', views.copilot_salary_prediction, name='copilot_salary_prediction'),
+    path('copilot/interview/questions', views.copilot_interview_questions, name='copilot_interview_questions'),
+    path('copilot/interview/<str:session_id>/evaluate', views.copilot_interview_evaluate, name='copilot_interview_evaluate'),
+    path('copilot/interview/history', views.copilot_interview_history, name='copilot_interview_history'),
+    path('copilot/job-match', views.copilot_job_match, name='copilot_job_match'),
+    path('copilot/company-insight', views.copilot_company_insight, name='copilot_company_insight'),
+    path('copilot/strategy', views.copilot_application_strategy, name='copilot_application_strategy'),
+    path('copilot/analytics', views.copilot_analytics, name='copilot_analytics'),
+    path('copilot/memory', views.copilot_memory, name='copilot_memory'),
 ]

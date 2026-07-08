@@ -244,14 +244,20 @@ def forgot_password(request):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        otp = '123456'
+        otp = str(random.randint(100000, 999999))
         user.otp_secret = otp
         user.save()
+
+        # Print OTP to terminal as requested
+        print("\n" + "="*50)
+        print(f" OTP GENERATED FOR: {email}")
+        print(f" SECURITY VERIFICATION CODE: {otp}")
+        print("="*50 + "\n")
 
         add_system_log('AUTH', f"Password recovery OTP dispatched for user: {email}", email)
 
         return Response({
-            'message': 'One-Time Password (OTP) generated. Check system notification simulation logs.',
+            'message': 'One-Time Password (OTP) generated. Check terminal console or simulation logs.',
             'otp': otp
         }, status=status.HTTP_200_OK)
 
@@ -1400,4 +1406,631 @@ def public_companies(request):
     employers = Employer.objects.filter(status='APPROVED')
     serializer = EmployerSerializer(employers, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ----------------- 7. AI CAREER COPILOT API ENDPOINTS -----------------
+import time
+from api.models import (
+    Resume, ResumeVersion, ResumeAnalysis, ResumeOptimization,
+    Conversation, ConversationMessage, AIRecommendation, CareerRoadmap,
+    LearningRecommendation, SalaryPrediction as SalaryPredictionModel,
+    InterviewSession, SkillGapAnalysis as SkillGapAnalysisModel,
+    JobMatchAnalysis, CompanyInsight as CompanyInsightModel, CoverLetter as CoverLetterModel,
+    AssessmentResult as AssessmentResultModel
+)
+from api.copilot_utils import (
+    generate_copilot_dashboard_data,
+    generate_copilot_chat_response,
+    generate_resume_analysis,
+    generate_resume_optimization,
+    generate_cover_letter,
+    generate_career_roadmap,
+    generate_learning_recommendation,
+    generate_interview_questions,
+    evaluate_mock_interview,
+    generate_salary_prediction,
+    generate_job_match_explanation,
+    generate_company_insights,
+    generate_application_strategy
+)
+
+@api_view(['GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_dashboard(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    data = generate_copilot_dashboard_data(candidate)
+    return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_conversations(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'GET':
+        conversations = Conversation.objects.filter(candidate=candidate).order_by('-is_pinned', '-updated_at')
+        data = []
+        for c in conversations:
+            data.append({
+                'id': c.id,
+                'title': c.title,
+                'is_favorite': c.is_favorite,
+                'is_pinned': c.is_pinned,
+                'updated_at': c.updated_at.isoformat()
+            })
+        return Response(data, status=status.HTTP_200_OK)
+        
+    elif request.method == 'POST':
+        title = request.data.get('title', 'New Conversation')
+        c_id = f"conv-{int(time.time() * 1000)}"
+        conv = Conversation.objects.create(
+            id=c_id,
+            candidate=candidate,
+            title=title
+        )
+        return Response({
+            'id': conv.id,
+            'title': conv.title,
+            'is_favorite': conv.is_favorite,
+            'is_pinned': conv.is_pinned
+        }, status=status.HTTP_201_CREATED)
+
+@api_view(['GET', 'POST', 'DELETE', 'PATCH'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_conversation_detail(request, pk):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+        conv = Conversation.objects.get(id=pk, candidate=candidate)
+    except (Candidate.DoesNotExist, Conversation.DoesNotExist):
+        return Response({'error': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'GET':
+        messages = ConversationMessage.objects.filter(conversation=conv).order_by('created_at')
+        msg_data = [{
+            'id': m.id,
+            'sender': m.sender,
+            'text': m.text,
+            'created_at': m.created_at.isoformat()
+        } for m in messages]
+        return Response({
+            'id': conv.id,
+            'title': conv.title,
+            'is_favorite': conv.is_favorite,
+            'is_pinned': conv.is_pinned,
+            'messages': msg_data
+        }, status=status.HTTP_200_OK)
+        
+    elif request.method == 'POST':
+        text = request.data.get('text')
+        if not text:
+            return Response({'error': 'Message text is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Save user message
+        u_msg_id = f"msg-usr-{int(time.time() * 1000)}"
+        ConversationMessage.objects.create(
+            id=u_msg_id,
+            conversation=conv,
+            sender='user',
+            text=text
+        )
+        
+        # Load conversation history context
+        history = list(ConversationMessage.objects.filter(conversation=conv).order_by('created_at')[:10])
+        history_formatted = [{'sender': h.sender, 'text': h.text} for h in history]
+        
+        # Generate AI response
+        ai_reply_text = generate_copilot_chat_response(candidate, text, history_formatted)
+        
+        # Save AI message
+        ai_msg_id = f"msg-ai-{int(time.time() * 1000)}"
+        ConversationMessage.objects.create(
+            id=ai_msg_id,
+            conversation=conv,
+            sender='ai',
+            text=ai_reply_text
+        )
+        
+        # Update updated_at of conversation
+        conv.save()
+        
+        return Response({
+            'user_message': {
+                'id': u_msg_id,
+                'sender': 'user',
+                'text': text
+            },
+            'ai_message': {
+                'id': ai_msg_id,
+                'sender': 'ai',
+                'text': ai_reply_text
+            }
+        }, status=status.HTTP_200_OK)
+        
+    elif request.method == 'PATCH':
+        title = request.data.get('title')
+        is_favorite = request.data.get('is_favorite')
+        is_pinned = request.data.get('is_pinned')
+        
+        if title is not None:
+            conv.title = title
+        if is_favorite is not None:
+            conv.is_favorite = is_favorite
+        if is_pinned is not None:
+            conv.is_pinned = is_pinned
+        conv.save()
+        return Response({
+            'id': conv.id,
+            'title': conv.title,
+            'is_favorite': conv.is_favorite,
+            'is_pinned': conv.is_pinned
+        }, status=status.HTTP_200_OK)
+        
+    elif request.method == 'DELETE':
+        conv.delete()
+        return Response({'message': 'Conversation deleted successfully.'}, status=status.HTTP_200_OK)
+
+@api_view(['POST', 'GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_resume_analyze(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'POST':
+        resume_file = request.FILES.get('file')
+        file_name = request.data.get('fileName', 'uploaded_resume.pdf')
+        
+        content_text = ""
+        if resume_file:
+            content_text = f"Parsed resume from file upload {file_name}."
+            
+        r_id = f"res-{int(time.time() * 1000)}"
+        resume = Resume.objects.create(
+            id=r_id,
+            candidate=candidate,
+            name=file_name,
+            content_text=content_text
+        )
+        
+        analysis = generate_resume_analysis(candidate, file_name, content_text)
+        
+        ra_id = f"anl-{int(time.time() * 1000)}"
+        ResumeAnalysis.objects.create(
+            id=ra_id,
+            candidate=candidate,
+            resume=resume,
+            ats_score=analysis['ats_score'],
+            formatting_score=analysis['formatting_score'],
+            grammar_score=analysis['grammar_score'],
+            keyword_score=analysis['keyword_score'],
+            analysis_data=analysis['analysis_data']
+        )
+        
+        candidate.resume_score = analysis['ats_score']
+        candidate.save()
+        
+        return Response({
+            'resume_id': resume.id,
+            'name': resume.name,
+            'ats_score': analysis['ats_score'],
+            'formatting_score': analysis['formatting_score'],
+            'grammar_score': analysis['grammar_score'],
+            'keyword_score': analysis['keyword_score'],
+            'analysis_data': analysis['analysis_data']
+        }, status=status.HTTP_201_CREATED)
+        
+    elif request.method == 'GET':
+        analyses = ResumeAnalysis.objects.filter(candidate=candidate).order_by('-created_at')
+        data = [{
+            'id': a.id,
+            'resume_name': a.resume.name,
+            'ats_score': a.ats_score,
+            'formatting_score': a.formatting_score,
+            'grammar_score': a.grammar_score,
+            'keyword_score': a.keyword_score,
+            'analysis_data': a.analysis_data,
+            'created_at': a.created_at.isoformat()
+        } for a in analyses]
+        return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_resume_optimize(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    resume_text = request.data.get('resumeText', '')
+    opt_data = generate_resume_optimization(candidate, resume_text)
+    
+    resume = Resume.objects.filter(candidate=candidate).first()
+    if not resume:
+        resume = Resume.objects.create(
+            id=f"res-{int(time.time() * 1000)}",
+            candidate=candidate,
+            name="Primary Profile Resume",
+            content_text=resume_text
+        )
+        
+    ResumeOptimization.objects.create(
+        id=f"opt-{int(time.time() * 1000)}",
+        candidate=candidate,
+        resume=resume,
+        before_content=opt_data['before_content'],
+        after_content=opt_data['after_content']
+    )
+    
+    return Response(opt_data, status=status.HTTP_200_OK)
+
+@api_view(['POST', 'GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_cover_letter(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'POST':
+        job_title = request.data.get('jobTitle', 'Software Engineer')
+        company_name = request.data.get('companyName', 'Technology Enterprise')
+        tone = request.data.get('tone', 'professional')
+        
+        letter_text = generate_cover_letter(candidate, job_title, company_name, tone)
+        
+        cl = CoverLetterModel.objects.create(
+            id=f"cl-{int(time.time() * 1000)}",
+            candidate=candidate,
+            job_title=job_title,
+            company_name=company_name,
+            letter_text=letter_text,
+            tone=tone
+        )
+        
+        return Response({
+            'id': cl.id,
+            'job_title': cl.job_title,
+            'company_name': cl.company_name,
+            'letter_text': cl.letter_text,
+            'tone': cl.tone,
+            'created_at': cl.created_at.isoformat()
+        }, status=status.HTTP_201_CREATED)
+        
+    elif request.method == 'GET':
+        letters = CoverLetterModel.objects.filter(candidate=candidate).order_by('-created_at')
+        data = [{
+            'id': l.id,
+            'job_title': l.job_title,
+            'company_name': l.company_name,
+            'letter_text': l.letter_text,
+            'tone': l.tone,
+            'created_at': l.created_at.isoformat()
+        } for l in letters]
+        return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['POST', 'GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_roadmap(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'POST':
+        target_role = request.data.get('targetRole', 'Tech Lead')
+        roadmap_res = generate_career_roadmap(candidate, target_role)
+        
+        CareerRoadmap.objects.create(
+            id=f"rdm-{int(time.time() * 1000)}",
+            candidate=candidate,
+            target_role=target_role,
+            roadmap_data=roadmap_res['roadmap_data']
+        )
+        return Response(roadmap_res, status=status.HTTP_201_CREATED)
+        
+    elif request.method == 'GET':
+        roadmaps = CareerRoadmap.objects.filter(candidate=candidate).order_by('-created_at')
+        data = [{
+            'id': r.id,
+            'target_role': r.target_role,
+            'roadmap_data': r.roadmap_data,
+            'created_at': r.created_at.isoformat()
+        } for r in roadmaps]
+        return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_skill_gap(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    job_title = request.data.get('jobTitle', 'Senior Developer')
+    job_description = request.data.get('jobDescription', '')
+    
+    missing_skills = ["System Design", "Docker", "DevOps Pipelines"]
+    if "kubernetes" in job_description.lower():
+        missing_skills.append("Kubernetes")
+    if "aws" in job_description.lower():
+        missing_skills.append("AWS Cloud Orchestration")
+        
+    learning = generate_learning_recommendation(candidate, missing_skills)
+    
+    analysis_data = {
+        'missing_skills': missing_skills,
+        'learning': learning
+    }
+    
+    SkillGapAnalysisModel.objects.create(
+        id=f"gap-{int(time.time() * 1000)}",
+        candidate=candidate,
+        job_title=job_title,
+        job_description=job_description,
+        analysis_data=analysis_data
+    )
+    
+    return Response(analysis_data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_learning(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    skills = request.data.get('skills', [])
+    learning = generate_learning_recommendation(candidate, skills)
+    return Response(learning, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_salary_prediction(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    role = request.data.get('role', 'Developer')
+    location = request.data.get('location', 'Bengaluru')
+    
+    salary_res = generate_salary_prediction(candidate, role, location)
+    
+    SalaryPredictionModel.objects.create(
+        id=f"sal-{int(time.time() * 1000)}",
+        candidate=candidate,
+        experience=salary_res['experience'],
+        skills=salary_res['skills'],
+        location=salary_res['location'],
+        min_salary=salary_res['min_salary'],
+        avg_salary=salary_res['avg_salary'],
+        max_salary=salary_res['max_salary'],
+        market_demand=salary_res['market_demand'],
+        growth_rate=salary_res['growth_rate']
+    )
+    
+    return Response(salary_res, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_interview_questions(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    round_type = request.data.get('roundType', 'Technical')
+    role = request.data.get('role', 'Software Engineer')
+    
+    questions = generate_interview_questions(candidate, round_type, role)
+    
+    session = InterviewSession.objects.create(
+        id=f"int-{int(time.time() * 1000)}",
+        candidate=candidate,
+        round_type=round_type,
+        role=role,
+        questions=questions,
+        answers={},
+        evaluation={},
+        completed=False
+    )
+    
+    return Response({
+        'session_id': session.id,
+        'round_type': session.round_type,
+        'role': session.role,
+        'questions': [{
+            'id': q['id'],
+            'question': q['question'],
+            'type': q['type'],
+            'difficulty': q['difficulty'],
+            'hint': q['hint']
+        } for q in questions]
+    }, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_interview_evaluate(request, session_id):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+        session = InterviewSession.objects.get(id=session_id, candidate=candidate)
+    except (Candidate.DoesNotExist, InterviewSession.DoesNotExist):
+        return Response({'error': 'Interview session not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    answers = request.data.get('answers', {})
+    session.answers = answers
+    
+    evaluation = evaluate_mock_interview(session.questions, answers)
+    session.evaluation = evaluation
+    session.completed = True
+    session.save()
+    
+    return Response(evaluation, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_interview_history(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    sessions = InterviewSession.objects.filter(candidate=candidate, completed=True).order_by('-created_at')
+    data = [{
+        'id': s.id,
+        'round_type': s.round_type,
+        'role': s.role,
+        'evaluation': s.evaluation,
+        'created_at': s.created_at.isoformat()
+    } for s in sessions]
+    return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_job_match(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    job_id = request.data.get('jobId')
+    if not job_id:
+        return Response({'error': 'jobId is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        job = Job.objects.get(id=job_id, soft_deleted=False)
+    except Job.DoesNotExist:
+        return Response({'error': 'Job not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    match_data = generate_job_match_explanation(candidate, job)
+    
+    JobMatchAnalysis.objects.create(
+        id=f"mtch-{int(time.time() * 1000)}",
+        candidate=candidate,
+        job=job,
+        match_score=match_data['match_score'],
+        analysis_data=match_data['analysis_data']
+    )
+    
+    return Response(match_data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_company_insight(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    company_name = request.data.get('companyName')
+    if not company_name:
+        return Response({'error': 'companyName is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    insight = generate_company_insights(company_name)
+    
+    CompanyInsightModel.objects.create(
+        id=f"ins-{int(time.time() * 1000)}",
+        candidate=candidate,
+        company_name=company_name,
+        insight_data=insight['insight_data']
+    )
+    
+    return Response(insight, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_application_strategy(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    job_id = request.data.get('jobId')
+    job = None
+    if job_id:
+        try:
+            job = Job.objects.get(id=job_id)
+        except Job.DoesNotExist:
+            pass
+            
+    strategy = generate_application_strategy(candidate, job)
+    return Response(strategy, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_analytics(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    return Response({
+        'applications': [2, 5, 8, 12, 14, 19],
+        'interviews': [1, 2, 2, 4, 5, 6],
+        'offers': [0, 0, 0, 1, 1, 2],
+        'rejections': [1, 2, 4, 6, 7, 9],
+        'acceptance_rate': 15,
+        'resume_views': [10, 24, 38, 45, 59, 78],
+        'recruiter_searches': [15, 32, 45, 60, 84, 110],
+        'profile_views': [20, 48, 67, 85, 120, 150]
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET', 'POST'])
+@authentication_classes([SimpleEmailAuthentication])
+@permission_classes([IsAuthenticated])
+def copilot_memory(request):
+    try:
+        candidate = Candidate.objects.get(user=request.user)
+    except Candidate.DoesNotExist:
+        return Response({'error': 'Candidate profile not initialized.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'GET':
+        recs = AIRecommendation.objects.filter(candidate=candidate).order_by('-created_at')
+        data = [{
+            'id': r.id,
+            'category': r.category,
+            'recommendation_text': r.recommendation_text,
+            'created_at': r.created_at.isoformat()
+        } for r in recs]
+        return Response(data, status=status.HTTP_200_OK)
+        
+    elif request.method == 'POST':
+        category = request.data.get('category', 'general')
+        text = request.data.get('text', '')
+        r = AIRecommendation.objects.create(
+            id=f"rec-{int(time.time() * 1000)}",
+            candidate=candidate,
+            category=category,
+            recommendation_text=text
+        )
+        return Response({
+            'id': r.id,
+            'category': r.category,
+            'recommendation_text': r.recommendation_text
+        }, status=status.HTTP_201_CREATED)
 
